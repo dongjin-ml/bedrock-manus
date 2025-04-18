@@ -65,24 +65,12 @@ def research_node(state: State) -> Command[Literal["supervisor"]]:
 def code_node(state: State) -> Command[Literal["supervisor"]]:
     """Node for the coder agent that executes Python code."""
     logger.info("Code agent starting task")
-
     coder_agent = create_react_agent(agent_name="coder")
     result = coder_agent.invoke(state=state)
-    #result = coder_agent.invoke(state)
-
     logger.info("Code agent completed task")
-    logger.debug(f"Code agent response: {result['messages'][-1].content}")
+    logger.debug(f"Code agent response: {result["content"][-1]["text"]}")
     return Command(
-        update={
-            "messages": [
-                HumanMessage(
-                    content=RESPONSE_FORMAT.format(
-                        "coder", result["messages"][-1].content
-                    ),
-                    name="coder",
-                )
-            ]
-        },
+        update={"messages": [get_message_from_string(role="user", string=RESPONSE_FORMAT.format("coder", result["content"][-1]["text"]), imgs=[])]},
         goto="supervisor",
     )
 
@@ -131,6 +119,10 @@ def supervisor_node(state: State) -> Command[Literal[*TEAM_MEMBERS, "__end__"]]:
         reasoning_budget_tokens=8192
     )
     full_response = response["text"]
+
+
+    print ("full_response", full_response)
+
     
     if full_response.startswith("```json"): full_response = full_response.removeprefix("```json")
     if full_response.endswith("```"): full_response = full_response.removesuffix("```")
@@ -240,13 +232,31 @@ def coordinator_node(state: State) -> Command[Literal["planner", "__end__"]]:
 def reporter_node(state: State) -> Command[Literal["supervisor"]]:
     """Reporter node that write a final report."""
     logger.info("Reporter write final report")
-    messages = apply_prompt_template("reporter", state)
-    response = get_llm_by_type(AGENT_LLM_MAP["reporter"]).invoke(messages)
+
+
+    system_prompts, messages = apply_prompt_template("reporter", state)
+    llm = get_llm_by_type(AGENT_LLM_MAP["reporter"])
+    llm.stream = True
+    llm_caller = llm_call(llm=llm, verbose=False, tracking=False)
+
+    response, ai_message = llm_caller.invoke(
+        messages=messages,
+        system_prompts=system_prompts,
+        #tool_config=tool_config,
+        enable_reasoning=False,
+        reasoning_budget_tokens=8192
+    )
+    full_response = response["text"]
+    print ("full_response", full_response)
+    #messages = apply_prompt_template("reporter", state)
+    #response = get_llm_by_type(AGENT_LLM_MAP["reporter"]).invoke(messages)
+    
     logger.debug(f"Current state messages: {state['messages']}")
-    logger.debug(f"reporter response: {response}")
+    logger.debug(f"reporter response: {full_response}")
 
     return Command(
         update={
+            "messages": [get_message_from_string(role="user", string=full_response, imgs=[])],
             "messages": [
                 HumanMessage(
                     content=RESPONSE_FORMAT.format("reporter", response.content),

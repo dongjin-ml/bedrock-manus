@@ -160,24 +160,26 @@ def get_llm_by_type(llm_type: LLMType) -> ChatOpenAI | ChatDeepSeek:
         
     elif llm_type == "basic":
         llm = bedrock_model(
-            model_id=bedrock_info.get_model_id(model_name="Claude-V3-7-Sonnet-CRI"),
+            #model_id=bedrock_info.get_model_id(model_name="Claude-V3-7-Sonnet-CRI"),
+            model_id=bedrock_info.get_model_id(model_name="Claude-V3-5-V-2-Sonnet-CRI"),
             bedrock_client=boto3_bedrock,
             stream=True,
             callbacks=[StreamingStdOutCallbackHandler()],
             inference_config={
-                'maxTokens': 8192*3,
+                'maxTokens': 8192,
                 #'stopSequences': ["\n\nHuman"],
                 'temperature': 0.01,
             }
         )
     elif llm_type == "vision":
         llm = bedrock_model(
-            model_id=bedrock_info.get_model_id(model_name="Claude-V3-7-Sonnet-CRI"),
+            #model_id=bedrock_info.get_model_id(model_name="Claude-V3-7-Sonnet-CRI"),
+            model_id=bedrock_info.get_model_id(model_name="Claude-V3-5-V-2-Sonnet-CRI"),
             bedrock_client=boto3_bedrock,
             stream=True,
             callbacks=[StreamingStdOutCallbackHandler()],
             inference_config={
-                'maxTokens': 8192*3,
+                'maxTokens': 8192,
                 #'stopSequences': ["\n\nHuman"],
                 'temperature': 0.01,
             }
