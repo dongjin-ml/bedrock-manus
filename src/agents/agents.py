@@ -14,6 +14,7 @@ from src.config.agents import AGENT_LLM_MAP
 from src.prompts.template import apply_prompt_template
 from src.agents.llm import get_llm_by_type, llm_call
 from src.tools.research_tools import research_tool_config, process_search_tool
+from src.tools.coder_tools import coder_tool_config, process_coder_tool
 
 class create_react_agent():
 
@@ -23,6 +24,9 @@ class create_react_agent():
         self.llm = get_llm_by_type(AGENT_LLM_MAP[self.agent_name])
         self.llm.stream = True
         self.llm_caller = llm_call(llm=self.llm, verbose=False, tracking=False)
+        
+        if self.agent_name == "researcher": self.tool_config = research_tool_config
+        elif self.agent_name == "coder": self.tool_config = coder_tool_config
         
         # 반복 대화 처리를 위한 설정
         self.MAX_TURNS = 15  # 무한 루프 방지용 최대 턴 수
@@ -42,7 +46,7 @@ class create_react_agent():
             response, ai_message = self.llm_caller.invoke(
                 messages=messages,
                 system_prompts=system_prompts,
-                tool_config=research_tool_config,
+                tool_config=self.tool_config,
                 enable_reasoning=False,
                 reasoning_budget_tokens=8192
             )
@@ -67,7 +71,8 @@ class create_react_agent():
                         print(f"요청된 도구: {tool['name']}")
                         print(f"입력 데이터: {tool['input']}")
 
-                        tool_result_message = process_search_tool(tool)
+                        if self.agent_name == "researcher": tool_result_message = process_search_tool(tool)
+                        elif self.agent_name == "coder": tool_result_message = process_coder_tool(tool)
 
                         # 결과 메시지를 대화에 추가
                         messages.append(tool_result_message)
@@ -98,7 +103,8 @@ class create_react_agent():
 #     prompt=lambda state: apply_prompt_template("researcher", state),
 # )
 
-research_agent = create_react_agent(agent_name="researcher")
+#research_agent = create_react_agent(agent_name="researcher")
+research_agent = None
 
 
 # coder_agent = create_react_agent(

@@ -10,20 +10,20 @@ from src.crawler import Crawler
 logger = logging.getLogger(__name__)
 
 
-@tool
-@log_io
-def crawl_tool(
-    url: Annotated[str, "The url to crawl."],
-) -> HumanMessage:
-    """Use this to crawl a url and get a readable content in markdown format."""
-    try:
-        crawler = Crawler()
-        article = crawler.crawl(url)
-        return {"role": "user", "content": article.to_message()}
-    except BaseException as e:
-        error_msg = f"Failed to crawl. Error: {repr(e)}"
-        logger.error(error_msg)
-        return error_msg
+# @tool
+# @log_io
+# def crawl_tool(
+#     url: Annotated[str, "The url to crawl."],
+# ) -> HumanMessage:
+#     """Use this to crawl a url and get a readable content in markdown format."""
+#     try:
+#         crawler = Crawler()
+#         article = crawler.crawl(url)
+#         return {"role": "user", "content": article.to_message()}
+#     except BaseException as e:
+#         error_msg = f"Failed to crawl. Error: {repr(e)}"
+#         logger.error(error_msg)
+#         return error_msg
     
 #def handle_crawl_tool(input_data: Dict[str, Any]) -> str:
 @log_io
@@ -45,12 +45,12 @@ def handle_crawl_tool(url: Annotated[str, "The url to crawl."]) -> str:
         # Crawl the URL
         article = crawler.crawl(url)
         
-        print ("article", article)
+        print ("article", article.to_message()[-1]["text"])
         
         # Get the message content
-        #content = article.to_message()
+        content = article.to_message()[-1]["text"]
         
-        return article
+        return content
     except Exception as e:
         error_msg = f"Failed to crawl. Error: {repr(e)}"
         logger.error(error_msg)

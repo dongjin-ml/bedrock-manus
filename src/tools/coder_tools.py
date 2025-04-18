@@ -1,47 +1,47 @@
 from typing import Dict, Any, List
-from src.tools.search import handle_tavily_tool
-from src.tools.crawl import handle_crawl_tool
+from src.tools.python_repl import handle_python_repl_tool
+from src.tools.bash_tool import handle_bash_tool
 
 tool_list = [
     {
         "toolSpec": {
-            "name": "crawl_tool",
-            "description": "Use this to crawl a url and get a readable content in markdown format.",
+            "name": "python_repl_tool",
+            "description": "Use this to execute python code and do data analysis or calculation. If you want to see the output of a value, you should print it out with `print(...)`. This is visible to the user.",
             "inputSchema": {
                 "json": {
                     "type": "object",
                     "properties": {
-                        "url": {
+                        "code": {
                             "type": "string",
-                            "description": "The url to crawl."
+                            "description": "The python code to execute to do further analysis or calculation."
                         }
                     },
-                    "required": ["url"]
+                    "required": ["code"]
                 }
             }
         }
     },
-    {
+     {
         "toolSpec": {
-            "name": "tavily_tool",
-            "description": "Use this tool to search the internet for real-time information, current events, or specific data. Provides relevant search results from Tavily's search engine API.",
+            "name": "bash_tool",
+            "description": "Use this to execute bash command and do necessary operations.",
             "inputSchema": {
                 "json": {
                     "type": "object",
                     "properties": {
-                        "query": {
+                        "cmd": {
                             "type": "string",
-                            "description": "The search query to look up on the internet."
+                            "description": "The bash command to be executed."
                         }
                     },
-                    "required": ["query"]
+                    "required": ["cmd"]
                 }
             }
         }
     }
 ]
 
-research_tool_config = {
+coder_tool_config = {
     "tools": tool_list,
     # "toolChoice": {
     #    "tool": {
@@ -50,7 +50,7 @@ research_tool_config = {
     # }
 }
 
-def process_search_tool(tool) -> str:
+def process_coder_tool(tool) -> str:
     """Process a tool invocation
     
     Args:
@@ -61,18 +61,18 @@ def process_search_tool(tool) -> str:
         Result of the tool invocation as a string
     """
     
-    tool_name, tool_input = tool['name'], tool['input']
+    tool_name, tool_input = tool["name"], tool["input"]
     
-    if tool_name == "tavily_tool":
+    if tool_name == "python_repl_tool":
         # Create a new instance of the Tavily search tool
-        results = handle_tavily_tool(query=tool_input["query"])
+        results = handle_python_repl_tool(code=tool_input["code"])
         tool_result = {
             "toolUseId": tool['toolUseId'],
             "content": [{"json": {"text": results}}]
         }
         #return response
-    elif tool_name == "crawl_tool":
-        results = handle_crawl_tool(tool_input)
+    elif tool_name == "bash_tool":
+        results = handle_bash_tool(cmd=tool_input["cmd"])
         tool_result = {
             "toolUseId": tool['toolUseId'],
             "content": [{"json": {"text": results}}]

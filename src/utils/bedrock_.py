@@ -187,9 +187,9 @@ class bedrock_utils():
         return message
         
     @staticmethod
-    def get_system_prompt(system_prompts, prompt_cache=False, cache_type="defalut"): # ephemeral/defalut
-        if prompt_cache: return [{"text": system_prompts}, {"cachePoint": {"type": cache_type}}]
-        else: return [{"text": system_prompts}]
+    def get_system_prompt(system_prompts):
+
+        return [{"text": system_prompts}]
 
     @staticmethod
     def converse_api(**kwargs):
@@ -277,8 +277,7 @@ class bedrock_utils():
                 tool_use = {}
                 stream_response = response["stream"]
 
-                for event in stream_response:
-                                        
+                for event in stream_response:                        
                     if 'messageStart' in event:
                         message['role'] = event['messageStart']['role']
                         if verbose: print(f"\nRole: {event['messageStart']['role']}")
@@ -313,7 +312,7 @@ class bedrock_utils():
                     elif 'messageStop' in event:
                         stop_reason = event['messageStop']['stopReason']
                         output["stop_reason"] = stop_reason
-                        #print(f"\nStop reason: {event['messageStop']['stopReason']}")
+                        #print(f"\nStop reasonsdsdsds: {event['messageStop']['stopReason']}")
 
                 if verbose:
                     if 'metadata' in event:

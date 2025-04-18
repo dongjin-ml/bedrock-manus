@@ -65,7 +65,11 @@ def research_node(state: State) -> Command[Literal["supervisor"]]:
 def code_node(state: State) -> Command[Literal["supervisor"]]:
     """Node for the coder agent that executes Python code."""
     logger.info("Code agent starting task")
-    result = coder_agent.invoke(state)
+
+    coder_agent = create_react_agent(agent_name="coder")
+    result = coder_agent.invoke(state=state)
+    #result = coder_agent.invoke(state)
+
     logger.info("Code agent completed task")
     logger.debug(f"Code agent response: {result['messages'][-1].content}")
     return Command(
