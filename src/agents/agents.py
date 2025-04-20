@@ -1,13 +1,7 @@
 #from langgraph.prebuilt import create_react_agent
 
-#from src.prompts import apply_prompt_template
-# from src.tools import (
-#     bash_tool,
-#     browser_tool,
-#     crawl_tool,
-#     python_repl_tool,
-#     tavily_tool,
-# )
+#from src.prompts import apply_prompt_template_langchain
+#from src.tools import browser_tool
 
 from .llm import get_llm_by_type
 from src.config.agents import AGENT_LLM_MAP
@@ -15,6 +9,7 @@ from src.prompts.template import apply_prompt_template
 from src.agents.llm import get_llm_by_type, llm_call
 from src.tools.research_tools import research_tool_config, process_search_tool
 from src.tools.coder_tools import coder_tool_config, process_coder_tool
+from src.tools.browser_tools import browser_tool_config, process_browser_tool
 
 class create_react_agent():
 
@@ -27,6 +22,7 @@ class create_react_agent():
         
         if self.agent_name == "researcher": self.tool_config = research_tool_config
         elif self.agent_name == "coder": self.tool_config = coder_tool_config
+        elif self.agent_name == "browser": self.tool_config = browser_tool_config
         
         # 반복 대화 처리를 위한 설정
         self.MAX_TURNS = 15  # 무한 루프 방지용 최대 턴 수
@@ -59,7 +55,6 @@ class create_react_agent():
             # 도구 사용 요청 확인
             if response["stop_reason"] == "tool_use":
                 print("모델이 도구 사용을 요청했습니다.")
-
                 tool_requests_found = False
 
                 # 응답에서 모든 도구 사용 요청 처리
@@ -68,13 +63,13 @@ class create_react_agent():
                         tool = content['toolUse']
                         tool_requests_found = True
 
-                        print(f"요청된 도구: {tool['name']}")
-                        print(f"입력 데이터: {tool['input']}")
+                        print(f"요청된 도구:\n {tool['name']}")
+                        print(f"입력 데이터:\n {tool['input']}")
 
                         if self.agent_name == "researcher": tool_result_message = process_search_tool(tool)
                         elif self.agent_name == "coder": tool_result_message = process_coder_tool(tool)
+                        elif self.agent_name == "browser": tool_result_message = process_browser_tool(tool)
 
-                        # 결과 메시지를 대화에 추가
                         messages.append(tool_result_message)
                         print(f"도구 실행 결과를 대화에 추가했습니다.")
 
@@ -88,37 +83,12 @@ class create_react_agent():
                 print("최종 응답을 받았습니다.")
 
         print("\n=== 대화 완료 ===")
-        print("최종 응답:", response)
-        print("메시지:", ai_message)
+        print("최종 응답:\n", response)
+        print("메시지:\n", ai_message)
         
         return ai_message
 
         
-        
-
-# Create agents using configured LLM types
-# research_agent = create_react_agent(
-#     get_llm_by_type(AGENT_LLM_MAP["researcher"]),
-#     tools=[tavily_tool, crawl_tool],
-#     prompt=lambda state: apply_prompt_template("researcher", state),
-# )
-
-#research_agent = create_react_agent(agent_name="researcher")
 research_agent = None
-
-
-# coder_agent = create_react_agent(
-#     get_llm_by_type(AGENT_LLM_MAP["coder"]),
-#     #tools=[python_repl_tool, bash_tool],
-#     prompt=lambda state: apply_prompt_template("coder", state),
-# )
-
 coder_agent = None
-
-# browser_agent = create_react_agent(
-#     get_llm_by_type(AGENT_LLM_MAP["browser"]),
-#     #tools=[browser_tool],
-#     prompt=lambda state: apply_prompt_template("browser", state),
-# )
-
 browser_agent = None

@@ -1,11 +1,9 @@
 import os
-import re
 from datetime import datetime
+from langchain_core.prompts import PromptTemplate
 from langgraph.prebuilt.chat_agent_executor import AgentState
 
 from src.utils.bedrock import bedrock_utils
-
-
 
 def get_prompt_template(prompt_name: str) -> str:
     template = open(os.path.join(os.path.dirname(__file__), f"{prompt_name}.md")).read()
@@ -20,7 +18,7 @@ def apply_prompt_template(prompt_name: str, state: AgentState) -> list:
         
     return system_prompts, state["messages"]
     
-# def apply_prompt_template(prompt_name: str, state: AgentState) -> list:
+# def apply_prompt_template_langchain(prompt_name: str, state: AgentState) -> list:
 #     system_prompt = PromptTemplate(
 #         input_variables=["CURRENT_TIME"],
 #         template=get_prompt_template(prompt_name),

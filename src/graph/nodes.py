@@ -6,7 +6,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 from langgraph.graph import END
 
-from src.agents import coder_agent, browser_agent # research_agent
+#from src.agents import browser_agent # research_agent, coder_agent
 from src.agents.agents import create_react_agent
 from src.agents.llm import get_llm_by_type, llm_call
 from src.config import TEAM_MEMBERS
@@ -22,79 +22,76 @@ logger = logging.getLogger(__name__)
 
 RESPONSE_FORMAT = "Response from {}:\n\n<response>\n{}\n</response>\n\n*Please execute the next step.*"
 FULL_PLAN_FORMAT = "Here is full plan :\n\n<full_plan>\n{}\n</full_plan>\n\n*Please consider this to select the next step.*"
-
+CLUES_FORMAT = "Here is clues form {}:\n\n<clues>\n{}\n</clues>\n\n"
 
 def research_node(state: State) -> Command[Literal["supervisor"]]:
     """Node for the researcher agent that performs research tasks."""
     logger.info("Research agent starting task")
-    
-    
-    print ("state", state)
     research_agent = create_react_agent(agent_name="researcher")
     result = research_agent.invoke(state=state)
-    print ("result", result)
-        
+    
+    clues = state.get("clues", "")
+    clues = '\n\n'.join([clues, CLUES_FORMAT.format("researcher", result["content"][-1]["text"])])
     logger.info("Research agent completed task")
-    #logger.debug(f"Research agent response: {result['messages'][-1].content}")
     logger.debug(f"Research agent response: {result["content"][-1]["text"]}")
-    
-    #  return Command(
-    #     update={
-    #         "messages": [
-    #             HumanMessage(
-    #                 content=RESPONSE_FORMAT.format(
-    #                     "researcher", result["messages"][-1].content
-    #                 ),
-    #                 name="researcher",
-    #             )
-    #         ]
-    #     },
-    #     goto="supervisor",
-    # )
 
-    print ("dsdsdsdsdssd")
-    print (RESPONSE_FORMAT.format("researcher", result["content"][-1]["text"]))
-    
-    messages = state["messages"]
+    history = state.get("history", [])
+    history.append({"agent":"researcher", "message": result["content"][-1]["text"]})
     return Command(
-        update={"messages": [get_message_from_string(role="user", string=RESPONSE_FORMAT.format("researcher", result["content"][-1]["text"]), imgs=[])]},
+        update={
+            "messages": [get_message_from_string(role="user", string=RESPONSE_FORMAT.format("researcher", result["content"][-1]["text"]), imgs=[])],
+            "messages_name": "researcher",
+            "clues": clues,
+            "history": history
+        },
         goto="supervisor",
     )
-
 
 def code_node(state: State) -> Command[Literal["supervisor"]]:
     """Node for the coder agent that executes Python code."""
     logger.info("Code agent starting task")
     coder_agent = create_react_agent(agent_name="coder")
     result = coder_agent.invoke(state=state)
+
+    clues = state.get("clues", "")
+    clues = '\n\n'.join([clues, CLUES_FORMAT.format("coder", result["content"][-1]["text"])])
     logger.info("Code agent completed task")
     logger.debug(f"Code agent response: {result["content"][-1]["text"]}")
-    return Command(
-        update={"messages": [get_message_from_string(role="user", string=RESPONSE_FORMAT.format("coder", result["content"][-1]["text"]), imgs=[])]},
-        goto="supervisor",
-    )
 
-
-def browser_node(state: State) -> Command[Literal["supervisor"]]:
-    """Node for the browser agent that performs web browsing tasks."""
-    logger.info("Browser agent starting task")
-    result = browser_agent.invoke(state)
-    logger.info("Browser agent completed task")
-    logger.debug(f"Browser agent response: {result['messages'][-1].content}")
+    history = state.get("history", [])
+    history.append({"agent":"coder", "message": result["content"][-1]["text"]})
     return Command(
         update={
-            "messages": [
-                HumanMessage(
-                    content=RESPONSE_FORMAT.format(
-                        "browser", result["messages"][-1].content
-                    ),
-                    name="browser",
-                )
-            ]
+            "messages": [get_message_from_string(role="user", string=RESPONSE_FORMAT.format("coder", result["content"][-1]["text"]), imgs=[])],
+            "messages_name": "coder",
+            "clues": clues,
+            "history": history
         },
         goto="supervisor",
     )
 
+def browser_node(state: State) -> Command[Literal["supervisor"]]:
+    """Node for the browser agent that performs web browsing tasks."""
+    logger.info("Browser agent starting task")
+    browser_agent = create_react_agent(agent_name="browser")
+    result = browser_agent.invoke(state=state)
+    
+    clues = state.get("clues", "")
+    clues = '\n\n'.join([clues, CLUES_FORMAT.format("browser", result["content"][-1]["text"])])
+    logger.info("Browser agent completed task")
+    logger.debug(f"Browser agent response: {result['content'][-1]["text"]}")
+
+    history = state.get("history", [])
+    history.append({"agent":"browser", "message": result["content"][-1]["text"]})
+    return Command(
+        update={
+            "messages": [get_message_from_string(role="user", string=RESPONSE_FORMAT.format("browser", result["content"][-1]["text"]), imgs=[])],
+            "messages_name": "browser",
+            "clues": clues,
+            "history": history
+        },
+        goto="supervisor"
+    )
 
 def supervisor_node(state: State) -> Command[Literal[*TEAM_MEMBERS, "__end__"]]:
     """Supervisor node that decides which agent should act next."""
@@ -105,25 +102,17 @@ def supervisor_node(state: State) -> Command[Literal[*TEAM_MEMBERS, "__end__"]]:
     llm.stream = True
     llm_caller = llm_call(llm=llm, verbose=False, tracking=False)
     
-    full_plan = state["full_plan"]
-    FULL_PLAN_FORMAT.format(full_plan)
-    messages[-1]["content"][-1]["text"] += FULL_PLAN_FORMAT.format(full_plan)
-    
-    print ("FULL_PLAN_FORMAT messages", messages)
+    clues, full_plan = state.get("clues", ""), state.get("full_plan", "")       
+    messages[-1]["content"][-1]["text"] = '\n\n'.join([messages[-1]["content"][-1]["text"], FULL_PLAN_FORMAT.format(full_plan), clues])
     
     response, ai_message = llm_caller.invoke(
         messages=messages,
         system_prompts=system_prompts,
-        #tool_config=tool_config,
         enable_reasoning=False,
         reasoning_budget_tokens=8192
     )
     full_response = response["text"]
 
-
-    print ("full_response", full_response)
-
-    
     if full_response.startswith("```json"): full_response = full_response.removeprefix("```json")
     if full_response.endswith("```"): full_response = full_response.removesuffix("```")
     
@@ -138,8 +127,15 @@ def supervisor_node(state: State) -> Command[Literal[*TEAM_MEMBERS, "__end__"]]:
     else:
         logger.info(f"Supervisor delegating to: {goto}")
 
-    return Command(goto=goto, update={"next": goto})
-
+    history = state.get("history", [])
+    history.append({"agent":"supervisor", "message": full_response})
+    return Command(
+        goto=goto,
+        update={
+            "next": goto,
+            "history": history
+        }
+    )
 
 def planner_node(state: State) -> Command[Literal["supervisor", "__end__"]]:
     """Planner node that generate the full plan."""
@@ -162,7 +158,6 @@ def planner_node(state: State) -> Command[Literal["supervisor", "__end__"]]:
     response, ai_message = llm_caller.invoke(
         messages=messages,
         system_prompts=system_prompts,
-        #tool_config=tool_config,
         enable_reasoning=False,
         reasoning_budget_tokens=8192
     )
@@ -184,18 +179,14 @@ def planner_node(state: State) -> Command[Literal["supervisor", "__end__"]]:
         logger.warning("Planner response is not a valid JSON")
         goto = "__end__"
         
-    # return Command(
-    #     update={
-    #         "messages": [HumanMessage(content=full_response, name="planner")],
-    #         "full_plan": full_response,
-    #     },
-    #     goto=goto,
-    # )
+    history = state.get("history", [])
+    history.append({"agent":"planner", "message": full_response})
     return Command(
         update={
             "messages": [get_message_from_string(role="user", string=full_response, imgs=[])],
             "messages_name": "planner",
             "full_plan": full_response,
+            "history": history
         },
         goto=goto,
     )
@@ -224,20 +215,24 @@ def coordinator_node(state: State) -> Command[Literal["planner", "__end__"]]:
     goto = "__end__"
     if "handoff_to_planner" in response["text"]: goto = "planner"
 
+    history = state.get("history", [])
+    history.append({"agent":"coordinator", "message": response["text"]})
     return Command(
+        update={"history": history},
         goto=goto,
     )
-
 
 def reporter_node(state: State) -> Command[Literal["supervisor"]]:
     """Reporter node that write a final report."""
     logger.info("Reporter write final report")
 
-
     system_prompts, messages = apply_prompt_template("reporter", state)
     llm = get_llm_by_type(AGENT_LLM_MAP["reporter"])
     llm.stream = True
     llm_caller = llm_call(llm=llm, verbose=False, tracking=False)
+
+    clues = state.get("clues", "")
+    messages[-1]["content"][-1]["text"] = '\n\n'.join([messages[-1]["content"][-1]["text"], clues])
 
     response, ai_message = llm_caller.invoke(
         messages=messages,
@@ -247,22 +242,16 @@ def reporter_node(state: State) -> Command[Literal["supervisor"]]:
         reasoning_budget_tokens=8192
     )
     full_response = response["text"]
-    print ("full_response", full_response)
-    #messages = apply_prompt_template("reporter", state)
-    #response = get_llm_by_type(AGENT_LLM_MAP["reporter"]).invoke(messages)
-    
     logger.debug(f"Current state messages: {state['messages']}")
     logger.debug(f"reporter response: {full_response}")
 
+    history = state.get("history", [])
+    history.append({"agent":"reporter", "message": full_response})
     return Command(
         update={
             "messages": [get_message_from_string(role="user", string=full_response, imgs=[])],
-            "messages": [
-                HumanMessage(
-                    content=RESPONSE_FORMAT.format("reporter", response.content),
-                    name="reporter",
-                )
-            ]
+            "messages_name": "reporter",
+            "history": history
         },
-        goto="supervisor",
+        goto="supervisor"
     )

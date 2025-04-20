@@ -2,10 +2,8 @@ import os
 from typing import Optional
 from src.utils import bedrock
 from src.utils.bedrock import bedrock_info, bedrock_model
+from langchain_aws import ChatBedrock
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-
-from langchain_openai import ChatOpenAI
-from langchain_deepseek import ChatDeepSeek
 
 from src.config import (
     REASONING_MODEL,
@@ -42,7 +40,7 @@ class llm_call():
         reasoning_budget_tokens = kwargs.get("reasoning_budget_tokens", 1024)
         tool_config = kwargs.get("tool_config", None)
         
-        print ("enable_reasoning", enable_reasoning)
+        #print ("enable_reasoning", enable_reasoning)
         
         if enable_reasoning:
             reasoning_config = {
@@ -62,8 +60,8 @@ class llm_call():
             self.llm.additional_model_request_fields = reasoning_config
             self.llm.inference_config["temperature"] = 1.0
 
-        print ("self.llm.additional_model_request_fields", self.llm.additional_model_request_fields)
-        print ("self.llm.inference_config", self.llm.inference_config)
+        #print ("self.llm.additional_model_request_fields", self.llm.additional_model_request_fields)
+        #print ("self.llm.inference_config", self.llm.inference_config)
            
         response, ai_message = self.chain( ## pipeline의 제일 처음 func의 argument를 입력으로 한다. 여기서는 converse_api의 arg를 쓴다.
             llm=self.llm,
@@ -84,55 +82,7 @@ class llm_call():
             
         return response, ai_message
 
-def create_openai_llm(
-    model: str,
-    base_url: Optional[str] = None,
-    api_key: Optional[str] = None,
-    temperature: float = 0.0,
-    **kwargs,
-) -> ChatOpenAI:
-    """
-    Create a ChatOpenAI instance with the specified configuration
-    """
-    # Only include base_url in the arguments if it's not None or empty
-    llm_kwargs = {"model": model, "temperature": temperature, **kwargs}
-
-    if base_url:  # This will handle None or empty string
-        llm_kwargs["base_url"] = base_url
-
-    if api_key:  # This will handle None or empty string
-        llm_kwargs["api_key"] = api_key
-
-    return ChatOpenAI(**llm_kwargs)
-
-
-def create_deepseek_llm(
-    model: str,
-    base_url: Optional[str] = None,
-    api_key: Optional[str] = None,
-    temperature: float = 0.0,
-    **kwargs,
-) -> ChatDeepSeek:
-    """
-    Create a ChatDeepSeek instance with the specified configuration
-    """
-    # Only include base_url in the arguments if it's not None or empty
-    llm_kwargs = {"model": model, "temperature": temperature, **kwargs}
-
-    if base_url:  # This will handle None or empty string
-        llm_kwargs["api_base"] = base_url
-
-    if api_key:  # This will handle None or empty string
-        llm_kwargs["api_key"] = api_key
-
-    return ChatDeepSeek(**llm_kwargs)
-
-
-# Cache for LLM instances
-#_llm_cache: dict[LLMType, ChatOpenAI | ChatDeepSeek] = {}
-
-
-def get_llm_by_type(llm_type: LLMType) -> ChatOpenAI | ChatDeepSeek:
+def get_llm_by_type(llm_type: LLMType):
     """
     Get LLM instance by type. Returns cached instance if available.
     """
@@ -184,6 +134,18 @@ def get_llm_by_type(llm_type: LLMType) -> ChatOpenAI | ChatDeepSeek:
                 'temperature': 0.01,
             }
         )
+    elif llm_type == "browser":
+        llm = ChatBedrock(
+            #model_id=bedrock_info.get_model_id(model_name="Claude-V3-7-Sonnet-CRI"),
+            model_id=bedrock_info.get_model_id(model_name="Claude-V3-5-V-2-Sonnet-CRI"),
+            client=boto3_bedrock,
+            model_kwargs={
+                "max_tokens": 8192,
+                "stop_sequences": ["\n\nHuman"],
+            },
+            #streaming=True,
+            callbacks=[StreamingStdOutCallbackHandler()],
+        )
     else:
         raise ValueError(f"Unknown LLM type: {llm_type}")
 
@@ -194,8 +156,7 @@ def get_llm_by_type(llm_type: LLMType) -> ChatOpenAI | ChatDeepSeek:
 # Initialize LLMs for different purposes - now these will be cached
 reasoning_llm = get_llm_by_type("reasoning")
 basic_llm = get_llm_by_type("basic")
-vl_llm = get_llm_by_type("vision")
-
+browser_llm = get_llm_by_type("browser")
 
 if __name__ == "__main__":
     stream = reasoning_llm.stream("what is mcp?")
@@ -205,4 +166,4 @@ if __name__ == "__main__":
     print(full_response)
 
     basic_llm.invoke("Hello")
-    vl_llm.invoke("Hello")
+    browser_llm.invoke("Hello")

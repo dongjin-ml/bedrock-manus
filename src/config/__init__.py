@@ -13,11 +13,13 @@ from .env import (
     VL_API_KEY,
     # Other configurations
     CHROME_INSTANCE_PATH,
+    BROWSER_HEADLESS
 )
 from .tools import TAVILY_MAX_RESULTS
 
 # Team configuration
 TEAM_MEMBERS = ["researcher", "coder", "browser", "reporter"]
+#TEAM_MEMBERS = ["browser"]
 
 __all__ = [
     # Reasoning LLM
@@ -36,4 +38,5 @@ __all__ = [
     "TEAM_MEMBERS",
     "TAVILY_MAX_RESULTS",
     "CHROME_INSTANCE_PATH",
+    "BROWSER_HEADLESS"
 ]
